@@ -137,11 +137,18 @@ class GiveawayAccessibilityService : AccessibilityService() {
                 BotState.ENTERING -> {
                     if (tapEnterButton(rootNode)) {
                         currentState = BotState.COOLDOWN
-                        incrementGiveawayCount()
 
                         handler.postDelayed({
-                            currentState = BotState.WATCHING
-                        }, COOLDOWN_MS)
+                            val refreshedWindow = rootInActiveWindow
+                            val entered = refreshedWindow?.let { isAlreadyEntered(it) } ?: false
+
+                            if (entered) {
+                                incrementGiveawayCount()
+                                currentState = BotState.ENTERED
+                            } else {
+                                currentState = BotState.ENTERING
+                            }
+                        }, 1200L)
                     }
                 }
 
@@ -222,24 +229,58 @@ class GiveawayAccessibilityService : AccessibilityService() {
             findNodesByText(rootNode, buttonText, nodes)
 
             for (node in nodes) {
-                val bounds = Rect()
-                node.getBoundsInScreen(bounds)
+                if (!node.isVisibleToUser) continue
 
-                if (bounds.width() <= 0 || bounds.height() <= 0) continue
+                val textBounds = Rect()
+                node.getBoundsInScreen(textBounds)
 
-                Log.d(TAG, "Found exact enter button '$buttonText' at $bounds")
+                if (textBounds.width() <= 0 || textBounds.height() <= 0) continue
 
-                val clickableNode = findClickableParent(node)
+                Log.d(TAG, "Found enter text '$buttonText' at $textBounds")
 
-                if (clickableNode != null &&
-                    clickableNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                if (node.isClickable &&
+                    node.isEnabled &&
+                    node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                 ) {
-                    Log.d(TAG, "Clicked enter button using accessibility action")
+                    Log.d(TAG, "Clicked enter text directly")
                     return true
                 }
 
-                if (performTap(bounds.centerX(), bounds.centerY())) {
-                    Log.d(TAG, "Tapped enter button at $bounds")
+                val clickableParent = findClickableParent(node)
+
+                if (clickableParent != null &&
+                    clickableParent.isVisibleToUser &&
+                    clickableParent.isEnabled &&
+                    clickableParent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                ) {
+                    Log.d(TAG, "Clicked enter button through clickable parent")
+                    return true
+                }
+
+                if (clickableParent != null) {
+                    val parentBounds = Rect()
+                    clickableParent.getBoundsInScreen(parentBounds)
+
+                    if (parentBounds.width() > 0 && parentBounds.height() > 0) {
+                        Log.d(TAG, "Tapping clickable parent at $parentBounds")
+
+                        if (performTap(
+                                parentBounds.centerX(),
+                                parentBounds.centerY()
+                            )
+                        ) {
+                            return true
+                        }
+                    }
+                }
+
+                Log.d(TAG, "Falling back to text bounds at $textBounds")
+
+                if (performTap(
+                        textBounds.centerX(),
+                        textBounds.centerY()
+                    )
+                ) {
                     return true
                 }
             }
@@ -278,16 +319,19 @@ class GiveawayAccessibilityService : AccessibilityService() {
     }
 
     private fun findClickableParent(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        var current: AccessibilityNodeInfo? = node
+        var current: AccessibilityNodeInfo? = node.parent
+        var levelsChecked = 0
 
-        repeat(5) {
-            val candidate = current ?: return null
-
-            if (candidate.isClickable && candidate.isEnabled) {
-                return candidate
+        while (current != null && levelsChecked < 6) {
+            if (current.isVisibleToUser &&
+                current.isClickable &&
+                current.isEnabled
+            ) {
+                return current
             }
 
-            current = candidate.parent
+            current = current.parent
+            levelsChecked++
         }
 
         return null
