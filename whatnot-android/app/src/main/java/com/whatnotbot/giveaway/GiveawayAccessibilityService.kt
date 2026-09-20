@@ -73,9 +73,6 @@ class GiveawayAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null || !MainActivity.isBotActive) return
 
-        val packageName = event.packageName?.toString() ?: return
-        if (!isWhatnotPackage(packageName)) return
-
         when (event.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
@@ -165,27 +162,17 @@ class GiveawayAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun findAndTapGiveawayButton(
-        rootNode: AccessibilityNodeInfo
-    ): Boolean {
+    private fun findAndTapGiveawayButton(rootNode: AccessibilityNodeInfo): Boolean {
         val giveawayNodes = mutableListOf<AccessibilityNodeInfo>()
         findNodesByText(rootNode, "giveaway", giveawayNodes)
 
         for (node in giveawayNodes) {
             val text = node.text?.toString()?.trim()?.lowercase() ?: ""
-            val description =
-                node.contentDescription?.toString()?.trim()?.lowercase() ?: ""
+            val description = node.contentDescription?.toString()?.trim()?.lowercase() ?: ""
 
-            /*
-             * Only accept a short, standalone giveaway label.
-             * This prevents large parent containers or unrelated descriptions
-             * containing the word "giveaway" from being tapped.
-             */
             val isGiveawayBadge =
                 text == "giveaway" ||
-                    text.matches(
-                        Regex("""giveaway\s+\d+\s*(entries|spots)?""")
-                    ) ||
+                    text.matches(Regex("""giveaway\s+\d+\s*(entries|spots)?""")) ||
                     description == "giveaway"
 
             if (!isGiveawayBadge) continue
@@ -200,9 +187,7 @@ class GiveawayAccessibilityService : AccessibilityService() {
             val clickableNode = findClickableParent(node)
 
             if (clickableNode != null &&
-                clickableNode.performAction(
-                    AccessibilityNodeInfo.ACTION_CLICK
-                )
+                clickableNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
             ) {
                 Log.d(TAG, "Clicked giveaway badge using accessibility action")
                 return true
@@ -217,9 +202,7 @@ class GiveawayAccessibilityService : AccessibilityService() {
         return false
     }
 
-    private fun findEnterGiveawayButton(
-        rootNode: AccessibilityNodeInfo
-    ): Boolean {
+    private fun findEnterGiveawayButton(rootNode: AccessibilityNodeInfo): Boolean {
         val enterNodes = mutableListOf<AccessibilityNodeInfo>()
 
         findNodesByText(rootNode, "Enter Giveaway", enterNodes)
@@ -228,9 +211,7 @@ class GiveawayAccessibilityService : AccessibilityService() {
         return enterNodes.isNotEmpty()
     }
 
-    private fun tapEnterButton(
-        rootNode: AccessibilityNodeInfo
-    ): Boolean {
+    private fun tapEnterButton(rootNode: AccessibilityNodeInfo): Boolean {
         val buttonTexts = listOf(
             "Enter Giveaway",
             "Follow and Enter"
@@ -244,18 +225,14 @@ class GiveawayAccessibilityService : AccessibilityService() {
                 val bounds = Rect()
                 node.getBoundsInScreen(bounds)
 
-                if (bounds.width() <= 0 || bounds.height() <= 0) {
-                    continue
-                }
+                if (bounds.width() <= 0 || bounds.height() <= 0) continue
 
                 Log.d(TAG, "Found exact enter button '$buttonText' at $bounds")
 
                 val clickableNode = findClickableParent(node)
 
                 if (clickableNode != null &&
-                    clickableNode.performAction(
-                        AccessibilityNodeInfo.ACTION_CLICK
-                    )
+                    clickableNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                 ) {
                     Log.d(TAG, "Clicked enter button using accessibility action")
                     return true
@@ -271,21 +248,11 @@ class GiveawayAccessibilityService : AccessibilityService() {
         return false
     }
 
-    private fun isAlreadyEntered(
-        rootNode: AccessibilityNodeInfo
-    ): Boolean {
+    private fun isAlreadyEntered(rootNode: AccessibilityNodeInfo): Boolean {
         val enteredNodes = mutableListOf<AccessibilityNodeInfo>()
 
-        findNodesByText(
-            rootNode,
-            "You're in the Giveaway",
-            enteredNodes
-        )
-        findNodesByText(
-            rootNode,
-            "You’re in the Giveaway",
-            enteredNodes
-        )
+        findNodesByText(rootNode, "You're in the Giveaway", enteredNodes)
+        findNodesByText(rootNode, "You’re in the Giveaway", enteredNodes)
 
         return enteredNodes.isNotEmpty()
     }
@@ -296,8 +263,7 @@ class GiveawayAccessibilityService : AccessibilityService() {
         results: MutableList<AccessibilityNodeInfo>
     ) {
         val nodeText = node.text?.toString() ?: ""
-        val contentDescription =
-            node.contentDescription?.toString() ?: ""
+        val contentDescription = node.contentDescription?.toString() ?: ""
 
         if (nodeText.contains(searchText, ignoreCase = true) ||
             contentDescription.contains(searchText, ignoreCase = true)
@@ -311,9 +277,7 @@ class GiveawayAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun findClickableParent(
-        node: AccessibilityNodeInfo
-    ): AccessibilityNodeInfo? {
+    private fun findClickableParent(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
         var current: AccessibilityNodeInfo? = node
 
         repeat(5) {
@@ -357,15 +321,11 @@ class GiveawayAccessibilityService : AccessibilityService() {
         val dispatched = dispatchGesture(
             gesture,
             object : GestureResultCallback() {
-                override fun onCompleted(
-                    gestureDescription: GestureDescription?
-                ) {
+                override fun onCompleted(gestureDescription: GestureDescription?) {
                     Log.d(TAG, "Tap completed at ($x, $y)")
                 }
 
-                override fun onCancelled(
-                    gestureDescription: GestureDescription?
-                ) {
+                override fun onCancelled(gestureDescription: GestureDescription?) {
                     Log.d(TAG, "Tap cancelled at ($x, $y)")
                 }
             },
@@ -394,11 +354,12 @@ class GiveawayAccessibilityService : AccessibilityService() {
             )
             .apply()
 
-        Log.d(
-            TAG,
-            "Giveaway entered. Total: ${MainActivity.gStatus(
-            "Entered!ActivityiveawaysEntered}"
-              fun getCurrentState(): BotState {
-        return currentState
+        Log.d(TAG, "Giveaway entered. Total: ${MainActivity.giveawaysEntered}")
+
+        OverlayService.instance?.updateStatus(
+            "Entered! Total: ${MainActivity.giveawaysEntered}"
+        )
     }
-            }
+
+    fun getCurrentState(): BotState = currentState
+}
